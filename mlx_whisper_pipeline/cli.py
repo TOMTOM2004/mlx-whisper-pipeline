@@ -6,7 +6,12 @@ import argparse
 import sys
 from pathlib import Path
 
-from .refine import DEFAULT_MAX_TOKENS, DEFAULT_MODEL as DEFAULT_CLAUDE_MODEL, refine
+from .refine import (
+    DEFAULT_API_MODEL,
+    DEFAULT_ENGINE,
+    DEFAULT_MAX_TOKENS,
+    refine,
+)
 from .transcribe import DEFAULT_MODEL as DEFAULT_WHISPER_MODEL, transcribe
 
 
@@ -29,14 +34,27 @@ def _build_parser() -> argparse.ArgumentParser:
         help="出力フォーマット (default: raw = 素起こしのみ)",
     )
     p.add_argument(
+        "--engine",
+        choices=["claude-code", "api"],
+        default=DEFAULT_ENGINE,
+        help=(
+            f"整文エンジン (default: {DEFAULT_ENGINE})。"
+            '"claude-code" は claude CLI 経由（subscription、API key 不要）。'
+            '"api" は Anthropic SDK 経由（ANTHROPIC_API_KEY 必須）'
+        ),
+    )
+    p.add_argument(
         "--whisper-model",
         default=DEFAULT_WHISPER_MODEL,
         help=f"mlx-whisper モデル ID (default: {DEFAULT_WHISPER_MODEL})",
     )
     p.add_argument(
-        "--claude-model",
-        default=DEFAULT_CLAUDE_MODEL,
-        help=f"Claude モデル ID (default: {DEFAULT_CLAUDE_MODEL})",
+        "--api-model",
+        default=DEFAULT_API_MODEL,
+        help=(
+            f"Anthropic モデル ID (default: {DEFAULT_API_MODEL})。"
+            "--engine api のときのみ有効"
+        ),
     )
     p.add_argument(
         "--language",
@@ -47,7 +65,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--max-tokens",
         type=int,
         default=DEFAULT_MAX_TOKENS,
-        help=f"Claude 最大出力トークン (default: {DEFAULT_MAX_TOKENS})",
+        help=(
+            f"Claude 最大出力トークン (default: {DEFAULT_MAX_TOKENS})。"
+            "--engine api のときのみ有効"
+        ),
     )
     p.add_argument(
         "-o",
@@ -77,7 +98,8 @@ def main(argv: list[str] | None = None) -> int:
             output = refine(
                 raw_text,
                 format=args.format,
-                model=args.claude_model,
+                engine=args.engine,
+                model=args.api_model,
                 max_tokens=args.max_tokens,
             )
 

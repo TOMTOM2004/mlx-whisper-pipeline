@@ -1,7 +1,7 @@
 [project]
 name = "mlx-whisper-pipeline"
-version = "0.1.0"
-description = "Apple Silicon ローカル AI 文字起こし + Claude 整文パイプライン"
+version = "0.2.0"
+description = "Apple Silicon ローカル AI 文字起こし + Claude 整文パイプライン (Claude Code / API 両対応)"
 authors = [{ name = "Tomonori Ishida", email = "tomonet0615@gmail.com" }]
 license = { file = "LICENSE" }
 readme = "README.md"
@@ -16,10 +16,10 @@ classifiers = [
 ]
 dependencies = [
     "mlx-whisper>=0.4",
-    "anthropic>=0.40",
 ]
 
 [project.optional-dependencies]
+api = ["anthropic>=0.40"]
 dev = [
     "pytest>=8.0",
     "pytest-mock>=3.12",
