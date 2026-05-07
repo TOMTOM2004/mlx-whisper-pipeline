@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+
+# venv
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# Secrets
+.env
+.env.local
+
+# Models / cache
+.cache/
+~/.cache/huggingface
+
+# Audio test files
+*.mp3
+*.m4a
+*.wav
+*.flac
+!examples/sample_*.txt
