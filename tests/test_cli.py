@@ -18,7 +18,17 @@ def test_parser_transcribe_defaults():
     assert args.cmd == "transcribe"
     assert args.audio == Path("audio.mp3")
     assert args.format == "raw"
+    assert args.engine == "claude-code"
     assert args.language is None
+
+
+def test_parser_transcribe_with_engine_api():
+    parser = _build_parser()
+    args = parser.parse_args(
+        ["transcribe", "audio.mp3", "--format", "minutes", "--engine", "api"]
+    )
+    assert args.format == "minutes"
+    assert args.engine == "api"
 
 
 def test_parser_transcribe_with_format_and_output():
@@ -44,7 +54,7 @@ def test_main_raw_calls_transcribe_only(capsys):
     assert "hello" in out
 
 
-def test_main_minutes_calls_refine(capsys):
+def test_main_minutes_default_engine_claude_code(capsys):
     with (
         patch("mlx_whisper_pipeline.cli.transcribe", return_value={"text": "raw text"}),
         patch("mlx_whisper_pipeline.cli.refine", return_value="# Minutes") as mock_r,
@@ -55,10 +65,22 @@ def test_main_minutes_calls_refine(capsys):
     mock_r.assert_called_once_with(
         "raw text",
         format="minutes",
+        engine="claude-code",
         model="claude-sonnet-4-6",
         max_tokens=4096,
     )
     assert "# Minutes" in capsys.readouterr().out
+
+
+def test_main_minutes_engine_api(capsys):
+    with (
+        patch("mlx_whisper_pipeline.cli.transcribe", return_value={"text": "raw"}),
+        patch("mlx_whisper_pipeline.cli.refine", return_value="result") as mock_r,
+    ):
+        main(["transcribe", "audio.mp3", "--format", "summary", "--engine", "api"])
+
+    mock_r.assert_called_once()
+    assert mock_r.call_args.kwargs["engine"] == "api"
 
 
 def test_main_writes_to_output_file(tmp_path, capsys):
