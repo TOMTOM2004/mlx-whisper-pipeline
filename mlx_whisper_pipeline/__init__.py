@@ -3,5 +3,5 @@
 from .refine import refine
 from .transcribe import transcribe
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = ["transcribe", "refine"]
