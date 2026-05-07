@@ -1,19 +1,20 @@
-"""素起こしテキストを Claude で整文する.
+"""素起こしテキストを整文する.
 
 Engine は 2 種類:
 
 - ``claude-code`` (default): subprocess で ``claude -p`` を呼ぶ。Claude Code subscription
-  で動作するため Anthropic API key 不要。Claude Code が PATH 上にインストールされている
-  必要がある。
-- ``api``: Anthropic SDK を使う。``ANTHROPIC_API_KEY`` が必要。CI / 別マシン上で
-  実行する用途向け。
+  で動作するため API key 不要。Claude Code が PATH 上にインストールされている必要がある。
+- ``api``: ``litellm`` 経由で 100+ プロバイダーに対応。``model`` パラメータで
+  ``claude-sonnet-4-6`` / ``gpt-4o`` / ``gemini-2.0-flash`` / ``ollama/llama3`` 等を
+  指定できる。対応する env var (``ANTHROPIC_API_KEY`` / ``OPENAI_API_KEY`` /
+  ``GEMINI_API_KEY`` / ``OLLAMA_API_BASE`` 等) は litellm が自動検出する。
 """
 
 from __future__ import annotations
 
 import shutil
 import subprocess
-from typing import Any, Literal
+from typing import Literal
 
 from .prompts import PROMPT_MAP
 
@@ -31,9 +32,8 @@ def refine(
     engine: Engine = DEFAULT_ENGINE,
     model: str = DEFAULT_API_MODEL,
     max_tokens: int = DEFAULT_MAX_TOKENS,
-    client: Any | None = None,
 ) -> str:
-    """素起こしテキストを Claude で整文・要約・構造化する.
+    """素起こしテキストを整文・要約・構造化する.
 
     Parameters
     ----------
@@ -45,20 +45,18 @@ def refine(
         - ``extract``: 決定事項 / 次アクション / 質問を JSON 抽出
     engine : "claude-code" | "api"
         - ``claude-code``: ``claude -p`` を subprocess で呼ぶ（API key 不要）
-        - ``api``: Anthropic SDK を使う（``ANTHROPIC_API_KEY`` が必要）
+        - ``api``: ``litellm.completion`` で multi-provider 呼出
     model : str
-        ``engine="api"`` のときに使う Anthropic モデル ID。
+        ``engine="api"`` のとき litellm に渡すモデル ID。
+        例: ``claude-sonnet-4-6`` / ``gpt-4o`` / ``gemini-2.0-flash`` / ``ollama/llama3``。
         ``engine="claude-code"`` のときは無視される。
     max_tokens : int
         ``engine="api"`` のときの最大出力トークン数。
-    client : Any | None
-        ``engine="api"`` のとき差し替え可能な Anthropic クライアント。
-        None なら ``ANTHROPIC_API_KEY`` から自動生成。
 
     Returns
     -------
     str
-        Claude の出力テキスト。
+        モデルの出力テキスト。
     """
     if format not in PROMPT_MAP:
         raise ValueError(f"unknown format: {format!r} (expected one of {list(PROMPT_MAP)})")
@@ -70,7 +68,7 @@ def refine(
     if engine == "claude-code":
         return _refine_via_claude_code(prompt)
     if engine == "api":
-        return _refine_via_api(prompt, model=model, max_tokens=max_tokens, client=client)
+        return _refine_via_litellm(prompt, model=model, max_tokens=max_tokens)
     raise ValueError(f"unknown engine: {engine!r} (expected 'claude-code' or 'api')")
 
 
@@ -95,20 +93,18 @@ def _refine_via_claude_code(prompt: str) -> str:
     return result.stdout.strip()
 
 
-def _refine_via_api(
-    prompt: str,
-    model: str,
-    max_tokens: int,
-    client: Any | None,
-) -> str:
-    """Anthropic SDK で応答を返す."""
-    if client is None:
-        from anthropic import Anthropic  # 遅延 import
+def _refine_via_litellm(prompt: str, model: str, max_tokens: int) -> str:
+    """``litellm.completion`` を呼ぶ。100+ プロバイダーに対応."""
+    try:
+        import litellm  # 遅延 import
+    except ImportError as e:
+        raise RuntimeError(
+            'litellm is not installed. Install with: pip install -e ".[api]"'
+        ) from e
 
-        client = Anthropic()
-    response = client.messages.create(
+    response = litellm.completion(
         model=model,
         max_tokens=max_tokens,
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.content[0].text
+    return response.choices[0].message.content
